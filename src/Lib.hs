@@ -1,3 +1,4 @@
+import Data.Char (ord, chr)
 
 data BfCmd =
     IncrPointer
@@ -77,7 +78,7 @@ execute :: BfCmd -> BfProgramExecution -> BfProgramExecution
 execute _ bfpe@(_, Nothing) = bfpe
 execute c bfpe@(ioActns, Just bfp@(BfProgram cmds m@(BfMemory _ x _))) =
   case c of
-    Print       -> (((putStr (show x)):ioActns), Just bfp)
+    Print       -> ((putChar (chr . fromIntegral $ x):ioActns), Just bfp)
     Incr        -> (ioActns, Just (BfProgram cmds (incrVal m)))
     Decr        -> (ioActns, Just (BfProgram cmds (decrVal m)))
     DecrPointer -> (ioActns, Just (BfProgram cmds (moveCursorLeft m)))
