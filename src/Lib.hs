@@ -61,7 +61,7 @@ decrVal (BfMemory left middle right) =
 extractBlock :: BfCode -> Maybe (BfCode, BfCode)
 extractBlock bfc = extract 1 0 bfc where
   extract _ _ [] = Nothing
-  extract nBlockStart nBlockEnd cmds@(c:cs)
+  extract nBlockStart nBlockEnd (c:cs)
     | c == BlockEnd && (nBlockEnd + 1) == nBlockStart = Just (cs, [])
     | otherwise  = (\tup -> (c:) <$> tup) <$> bottom where
       bottom = extract (nextStartB nBlockStart) (nextEndB nBlockEnd) cs where
@@ -70,20 +70,21 @@ extractBlock bfc = extract 1 0 bfc where
 
 runBlock :: BfProgramExecution -> BfProgramExecution
 runBlock bfpe@(_, Nothing) = bfpe
-runBlock bfpe@(ioActns, Just (BfProgram (c:cs) m@(BfMemory _ x _)))
+runBlock bfpe@(_, Just (BfProgram [] _)) = bfpe
+runBlock bfpe@(ioActns, Just (BfProgram cmds@(c:cs) m@(BfMemory _ x _)))
   | x == 0    = bfpe
   | otherwise = runBlock $ execute c (ioActns, Just (BfProgram cs m))
 
 execute :: BfCmd -> BfProgramExecution -> BfProgramExecution
 execute _ bfpe@(_, Nothing) = bfpe
-execute c bfpe@(ioActns, Just bfp@(BfProgram cmds m@(BfMemory _ x _))) =
+execute c bfpe@(ioActns, Just bfp@(BfProgram cs m@(BfMemory _ x _))) =
   case c of
     Print       -> ((putChar (chr . fromIntegral $ x):ioActns), Just bfp)
-    Incr        -> (ioActns, Just (BfProgram cmds (incrVal m)))
-    Decr        -> (ioActns, Just (BfProgram cmds (decrVal m)))
-    DecrPointer -> (ioActns, Just (BfProgram cmds (moveCursorLeft m)))
-    IncrPointer -> (ioActns, Just (BfProgram cmds (moveCursorRight m)))
-    BlockStart  -> case extractBlock cmds of
+    Incr        -> (ioActns, Just (BfProgram cs (incrVal m)))
+    Decr        -> (ioActns, Just (BfProgram cs (decrVal m)))
+    DecrPointer -> (ioActns, Just (BfProgram cs (moveCursorLeft m)))
+    IncrPointer -> (ioActns, Just (BfProgram cs (moveCursorRight m)))
+    BlockStart  -> case extractBlock cs of
       Nothing                   -> (ioActns, Nothing)
       (Just (block, codeTail))  ->  (\x -> replaceBfCode <$> x) <$> executedBlock where
         replaceBfCode = (\(BfProgram _ m) -> BfProgram codeTail m)
@@ -93,7 +94,7 @@ execute c bfpe@(ioActns, Just bfp@(BfProgram cmds m@(BfMemory _ x _))) =
 run :: BfProgramExecution -> BfProgramExecution
 run bfpe@(_, Nothing) = bfpe
 run bfpe@(_, Just (BfProgram [] _)) = bfpe
-run bfpe@(ioActns, (Just (BfProgram cmds@(c:cs) m))) =
+run (ioActns, (Just (BfProgram (c:cs) m))) =
   run $ execute c actionPrepended where
     actionPrepended = (ioActns, Just (BfProgram cs m))
 
