@@ -25,7 +25,7 @@ data BfProgram = BfProgram {
       memory     :: BfMemory
   } deriving (Eq, Show)
 
-type BfProgramExecution = ([IO ()], Maybe BfProgram)
+type BfProgramExecution = (String, Maybe BfProgram)
 
 chrToBfCmd :: Char -> BfCmd
 chrToBfCmd x = case x of
@@ -58,6 +58,9 @@ decrVal :: BfMemory -> BfMemory
 decrVal (BfMemory left middle right) =
   BfMemory left (middle-1) right
 
+replaceBfCode :: BfCode -> BfProgram -> BfProgram
+replaceBfCode code (BfProgram _ m) = BfProgram code m
+
 extractBlock :: BfCode -> Maybe (BfCode, BfCode)
 extractBlock bfc = extract 1 0 bfc where
   extract _ _ [] = Nothing
@@ -71,35 +74,45 @@ extractBlock bfc = extract 1 0 bfc where
 runBlock :: BfProgramExecution -> BfProgramExecution
 runBlock bfpe@(_, Nothing) = bfpe
 runBlock bfpe@(_, Just (BfProgram [] _)) = bfpe
-runBlock bfpe@(ioActns, Just (BfProgram cmds@(c:cs) m@(BfMemory _ x _)))
-  | x == 0    = bfpe
-  | otherwise = runBlock $ execute c (ioActns, Just (BfProgram cs m))
+runBlock bfpe@(printChrs, Just (BfProgram cmds m@(BfMemory _ x _)))
+  | x == 0 = bfpe
+  | otherwise = runBlock $ (\x -> (replaceBfCode cmds) <$> x) <$> executedBlock
+    where
+      executedBlock = run (printChrs, Just (BfProgram cmds m))
 
 execute :: BfCmd -> BfProgramExecution -> BfProgramExecution
 execute _ bfpe@(_, Nothing) = bfpe
-execute c bfpe@(ioActns, Just bfp@(BfProgram cs m@(BfMemory _ x _))) =
+execute c bfpe@(printChrs, Just bfp@(BfProgram cmds m@(BfMemory _ x _))) =
   case c of
-    Print       -> ((putChar (chr . fromIntegral $ x):ioActns), Just bfp)
-    Incr        -> (ioActns, Just (BfProgram cs (incrVal m)))
-    Decr        -> (ioActns, Just (BfProgram cs (decrVal m)))
-    DecrPointer -> (ioActns, Just (BfProgram cs (moveCursorLeft m)))
-    IncrPointer -> (ioActns, Just (BfProgram cs (moveCursorRight m)))
-    BlockStart  -> case extractBlock cs of
-      Nothing                   -> (ioActns, Nothing)
-      (Just (block, codeTail))  ->  (\x -> replaceBfCode <$> x) <$> executedBlock where
-        replaceBfCode = (\(BfProgram _ m) -> BfProgram codeTail m)
-        executedBlock = runBlock (ioActns, Just (BfProgram (concat $ repeat block) m))
+    Print       -> (printChrs ++ [(chr . fromIntegral $ x)], Just bfp)
+    Incr        -> (printChrs, Just (BfProgram cmds (incrVal m)))
+    Decr        -> (printChrs, Just (BfProgram cmds (decrVal m)))
+    DecrPointer -> (printChrs, Just (BfProgram cmds (moveCursorLeft m)))
+    IncrPointer -> (printChrs, Just (BfProgram cmds (moveCursorRight m)))
+    BlockStart  -> case extractBlock cmds of
+
+      Nothing                   -> (printChrs, Nothing)
+
+      (Just (codeTail, block))  ->
+        (\x -> (replaceBfCode codeTail) <$> x) <$> executedBlock where
+          executedBlock = runBlock (printChrs, Just (BfProgram block m))
+
     _           -> bfpe
 
 run :: BfProgramExecution -> BfProgramExecution
 run bfpe@(_, Nothing) = bfpe
 run bfpe@(_, Just (BfProgram [] _)) = bfpe
-run (ioActns, (Just (BfProgram (c:cs) m))) =
+run (printChrs, (Just (BfProgram (c:cs) m))) =
   run $ execute c actionPrepended where
-    actionPrepended = (ioActns, Just (BfProgram cs m))
+    actionPrepended = (printChrs, Just (BfProgram cs m))
 
 translateBrainFuck :: [Char] -> BfProgramExecution
 translateBrainFuck sourceCode = run ([], Just (BfProgram cmds memory)) where
   cmds = strToBfCode sourceCode
-  memory = BfMemory (concat $ repeat [0]) 0 (concat $ repeat [0])
+  memory = BfMemory (repeat 0) 0 (repeat 0)
+
+
+helloWorldBrainFuck :: [Char]
+helloWorldBrainFuck = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>." ++
+                      ">---.+++++++..+++.>>.<-.<.+++.------.--------.>>+."
 
