@@ -9,7 +9,7 @@ The repository has the following structure:
     └ Lib.hs (1.)
 ```
 
-**(1.)** The **src/Lib.hs** module contains the brainfuck interpreter sourcecode.
+**(1.)** The [src/Lib.hs](https://github.com/habospace/BrainFuckHaskell/blob/master/src/Lib.hs) module contains the brainfuck interpreter sourcecode.
 To test it, import the module to the GHCI, run the **translateBrainFuck** function
 (**type signature**: translateBrainFuck :: [Char] -> BfProgramExecution) with a string 
 that represents brainfuck code.
