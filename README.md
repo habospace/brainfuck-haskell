@@ -21,4 +21,4 @@ A program that prints "Hello World!" in brainfuck looks like this:
 ```
 
 So you just need to call the **translateBrainFuck** function with the above brainfuck code 
-(represented as a string/;list of characters)
+(represented as a string/list of characters)
