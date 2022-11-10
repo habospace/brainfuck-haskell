@@ -1,4 +1,4 @@
-# BrainFuckHaskell
+# brainfuck-haskell
 
 BrainFuck Interpreter implemented in Haskell.
 See description of the brainfuck language here: https://en.wikipedia.org/wiki/Brainfuck.
